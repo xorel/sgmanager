@@ -195,18 +195,19 @@ class SecurityGroups(object):
                     srule = SRule(**r)
                     sgroup.add_rule(srule)
 
-        for expand_key1 in ['cidr', 'groups']:
-            for cidr_or_group in rule.get(expand_key1, None):
-                if cidr_or_group is None:
-                    _expand_to_and_load(rule, sgroup)
-                else:
-                    #create new rule
-                    new_rule = { expand_key: [cidr_or_group] }
+        for expand_key in ['cidr', 'groups']:
+            for cidr_or_group in rule.get(expand_key, []):
+                #create new rule
+                new_rule = { expand_key: [cidr_or_group] }
 
-                    # copy the rest
-                    for key in ['port', 'protocol', 'port_from', 'port_to', 'to']:
-                        new_rule[key] = rule['key']
-                        _expand_to_and_load(new_rule, sgroup)
+                # copy the rest
+                for key in ['port', 'protocol', 'port_from', 'port_to', 'to']:
+                    if key in rule: 
+                        new_rule[key] = rule[key]
+                    _expand_to_and_load(sgroup, new_rule)
+
+            if not rule.has_key('cidr') and not rule.has_key('groups'):
+                _expand_to_and_load(sgroup, rule)
 
 
 
@@ -273,9 +274,9 @@ class SecurityGroups(object):
         Return YAML dump of loaded groups
         :rtype : basestring
         """
-        #return yaml.dump( dict((name, group.dump()) for (name, group) in self.groups.iteritems() ), Dumper=YamlDumper)
-        from pprint import pprint as pp
-        return dict((name, group.dump()) for (name, group) in self.groups.iteritems() )
+        return yaml.dump( dict((name, group.dump()) for (name, group) in self.groups.iteritems() ), Dumper=YamlDumper)
+        # from pprint import pprint as pp
+        # return dict((name, group.dump()) for (name, group) in self.groups.iteritems() )
 
     def has_group(self, name):
         if self.groups.has_key(name):
