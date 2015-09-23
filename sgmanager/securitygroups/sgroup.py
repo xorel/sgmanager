@@ -5,6 +5,7 @@ import logging
 import sgmanager
 from sgmanager.decorators import CachedMethod
 from sgmanager.securitygroups.srule import SRule
+from copy import deepcopy
 
 # Logging should be initialized by cli
 lg = logging.getLogger(__name__)
@@ -50,13 +51,71 @@ class SGroup(object):
         rule.set_group(self)
         self.rules.append(rule)
 
-    def dump(self):
+
+    def dump(self, merge_by='both2'):
+
+        def merge(rules, by=['protocol','port','port_from','port_to'],
+                combine=['groups', 'cidr'], pack=[], pack_key='to'):
+            """
+            Merge rules before dumping, either by proto+ports (default) or groups+cidr
+            """
+            def format_key(rule):
+                return ','.join([str(rule.get(k, '-')) for k in by])
+
+            def merge_rules(r1, r2):
+                for key in combine:
+                    if key in r2 and key not in r1:
+                        r1[key] = r2[key]
+                    elif key in r2 and key in r1:
+                            r1[key].extend(r2[key])
+
+                if pack:
+                    if pack_key in r1:
+                        r1[pack_key].append(
+                                dict((k,r2.get(k)) for k in pack if r2.get(k))
+                                )
+                    else:
+                        r1[pack_key]=[
+                                dict((k,r1.get(k)) for k in pack if r1.get(k)),
+                                dict((k,r2.get(k)) for k in pack if r2.get(k))
+                                ]
+                    for k in pack:
+                        r1.pop(k,None)
+
+            seen = {}
+            new_rules = []
+            new_rule_idx = 0
+
+            for rule in rules:
+                if format_key(rule) not in seen:
+                    new_rules.append(deepcopy(rule))
+                    seen[format_key(rule)] = new_rule_idx
+                    new_rule_idx += 1
+                else:
+                    idx = seen[format_key(rule)]
+                    merge_rules(new_rules[idx], rule)
+
+            return new_rules
+
         """
         Return dictionary structure
         """
+
+        rules = [rule.dump() for rule in self.rules]
+        if merge_by == 'proto_ports':
+            rules = merge(rules) # use default params
+        elif merge_by == 'group_cidr':
+            rules =  merge(rules,by=['groups','cidr'], combine=[], pack=['protocol','port','port_from','port_to'])
+        elif merge_by == 'both1':
+            rules = merge(rules) # use default params
+            rules =  merge(rules,by=['groups','cidr'], combine=[], pack=['protocol','port','port_from','port_to'])
+        elif merge_by == 'both2':
+            rules =  merge(rules,by=['groups','cidr'], combine=[], pack=['protocol','port','port_from','port_to'])
+            rules = merge(rules) # use default params
+
         dump = {
             'description': self.description,
-            'rules': [rule.dump() for rule in self.rules],
+            'rules': rules,
         }
 
         if self.vpc_id:

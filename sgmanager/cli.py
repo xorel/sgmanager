@@ -77,7 +77,8 @@ def cli():
 
     if args.dump:
         # Only dump remote groups and exit
-        print manager.dump_remote_groups()
+        from pprint import pprint as pp
+        pp( manager.dump_remote_groups() )
         sys.exit(0)
 
     if args.remove_unused:
