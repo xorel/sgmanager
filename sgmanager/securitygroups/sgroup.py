@@ -52,15 +52,17 @@ class SGroup(object):
         self.rules.append(rule)
 
 
-    def dump(self, merge_by='both2'):
+    def dump(self, merge_by=['to']):
 
-        def merge(rules, by=['protocol','port','port_from','port_to'],
-                combine=['groups', 'cidr'], pack=[], pack_key='to'):
+        def merge(rules, what='to'):
             """
-            Merge rules before dumping, either by proto+ports (default) or groups+cidr
+            Merge rules before dumping
             """
             def format_key(rule):
-                return ','.join([str(rule.get(k, '-')) for k in by])
+                if rule.has_key('to') and isinstance(rule['to'], list):
+                    rule['to'].sort()
+                # supposing str orders dict to be always the same
+                return str(dict((k,v) for (k,v) in rule.items() if k in by))
 
             def merge_rules(r1, r2):
                 for key in combine:
@@ -79,9 +81,21 @@ class SGroup(object):
                                 dict((k,r1.get(k)) for k in pack if r1.get(k)),
                                 dict((k,r2.get(k)) for k in pack if r2.get(k))
                                 ]
+                    # remove port, proto, etc but not "to":
                     for k in pack:
-                        r1.pop(k,None)
+                        if k != pack_key:
+                            r1.pop(k,None)
 
+            if what == 'to':
+                by=['groups','cidr']
+                combine=[]
+                pack=['protocol','port','port_from','port_to','to']
+            else: # 'from'
+                by=['protocol','port','port_from','port_to', 'to']
+                combine=['groups', 'cidr']
+                pack=[]
+
+            pack_key='to'
             seen = {}
             new_rules = []
             new_rule_idx = 0
@@ -100,18 +114,10 @@ class SGroup(object):
         """
         Return dictionary structure
         """
-
         rules = [rule.dump() for rule in self.rules]
-        if merge_by == 'proto_ports':
-            rules = merge(rules) # use default params
-        elif merge_by == 'group_cidr':
-            rules =  merge(rules,by=['groups','cidr'], combine=[], pack=['protocol','port','port_from','port_to'])
-        elif merge_by == 'both1':
-            rules = merge(rules) # use default params
-            rules =  merge(rules,by=['groups','cidr'], combine=[], pack=['protocol','port','port_from','port_to'])
-        elif merge_by == 'both2':
-            rules =  merge(rules,by=['groups','cidr'], combine=[], pack=['protocol','port','port_from','port_to'])
-            rules = merge(rules) # use default params
+
+        while merge_by:
+            rules = merge(rules, merge_by.pop(0))
 
         dump = {
             'description': self.description,

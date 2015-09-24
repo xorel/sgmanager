@@ -204,7 +204,8 @@ class SecurityGroups(object):
                 for key in ['port', 'protocol', 'port_from', 'port_to', 'to']:
                     if key in rule: 
                         new_rule[key] = rule[key]
-                    _expand_to_and_load(sgroup, new_rule)
+
+                _expand_to_and_load(sgroup, new_rule)
 
             if not rule.has_key('cidr') and not rule.has_key('groups'):
                 _expand_to_and_load(sgroup, rule)
