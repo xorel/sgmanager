@@ -189,10 +189,10 @@ class SecurityGroups(object):
                         new_r = r.copy()
                         new_r.pop('to')
                         new_r.update(proto_port)
-                        srule = SRule(**new_r)
+                        srule = SRule(owner_id=self.owner_id, **new_r)
                         sgroup.add_rule(srule)
                 else:
-                    srule = SRule(**r)
+                    srule = SRule(owner_id=self.owner_id, **r)
                     sgroup.add_rule(srule)
 
         for expand_key in ['cidr', 'groups']:

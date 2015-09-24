@@ -10,7 +10,6 @@ from copy import deepcopy
 # Logging should be initialized by cli
 lg = logging.getLogger(__name__)
 
-
 class SGroup(object):
     """
     Single security group and it's rules
@@ -52,7 +51,7 @@ class SGroup(object):
         self.rules.append(rule)
 
 
-    def dump(self, merge_by=['to']):
+    def dump(self, merge_by=['to', 'from']):
 
         def merge(rules, what='to'):
             """
@@ -107,7 +106,12 @@ class SGroup(object):
                     new_rule_idx += 1
                 else:
                     idx = seen[format_key(rule)]
-                    merge_rules(new_rules[idx], rule)
+                    # this awesome check only filter out rules like: upd 123 from 0.0.0.0/0
+                    # which tend to be mask easily by merging with some other rules
+                    if len([ k for k in new_rules[idx].keys() if k not in by ]) != 0 and len([ k for k in rule.keys() if k not in by ]):
+                        merge_rules(new_rules[idx], rule)
+                    else:
+                        new_rules.append(deepcopy(rule))
 
             return new_rules
 
